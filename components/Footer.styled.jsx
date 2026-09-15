@@ -12,8 +12,8 @@ import YoutubeSvg from "../public/icons/youtube.svg?react";
 
 const FacebookIcon = styled(FacebookSvg)`
   color: red;
-  height: 30px;
-  width: 30px;
+  height: 50px;
+  width: 50px;
   padding-left: 5px;
   padding-right: 5px;
   transition: transform 0.3s ease;
@@ -25,8 +25,8 @@ const FacebookIcon = styled(FacebookSvg)`
 
 const InstagramIcon = styled(InstagramSvg)`
   color: red;
-  height: 30px;
-  width: 30px;
+  height: 50px;
+  width: 50px;
   padding-left: 5px;
   padding-right: 5px;
   transition: transform 0.3s ease;
@@ -38,8 +38,8 @@ const InstagramIcon = styled(InstagramSvg)`
 
 const LinkedInIcon = styled(LinkedinSvg)`
   color: red;
-  height: 30px;
-  width: 30px;
+  height: 50px;
+  width: 50px;
   padding-left: 5px;
   padding-right: 5px;
   transition: transform 0.3s ease;
@@ -51,8 +51,8 @@ const LinkedInIcon = styled(LinkedinSvg)`
 
 const YoutubeIcon = styled(YoutubeSvg)`
   color: red;
-  height: 30px;
-  width: 30px;
+  height: 50px;
+  width: 50px;
   padding-left: 5px;
   padding-right: 5px;
   transition: transform 0.3s ease;

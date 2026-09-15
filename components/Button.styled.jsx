@@ -5,10 +5,22 @@ import Link from "next/link";
 
 
 const ParallelogramButton = styled(Link)`
+
+display: flex;
+flex-direction: column;
+
+justify-content: center;
+align-items: center;
+
   --skew: -30deg;
 
-  width: 100px;
-  height: 30px;
+  /* width: 100px;
+  height: 30px; */
+
+  width: inherit;
+  height: fit-content;
+  padding-left: 8px;
+  padding-right: 8px;
 
   border-radius: 5px 0 5px 0;
 
@@ -67,7 +79,7 @@ const ButtonText = styled.span`
   transform: skewX(30deg);
 `;
 
-export default function HeaderButton({ children, href }) {
+export default function Button({ children, href }) {
   return (
     <>
       <ParallelogramButton href={href}>

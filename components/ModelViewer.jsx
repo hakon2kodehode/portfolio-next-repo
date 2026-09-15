@@ -1,3 +1,5 @@
+"use client";
+
 /* eslint-disable react-hooks/rules-of-hooks */
 /* eslint-disable react/no-unknown-property */
 
@@ -6,40 +8,37 @@ import {
   useRef,
   useLayoutEffect,
   useEffect,
-  useMemo
-} from 'react';
+  useMemo,
+} from "react";
 
 import {
   Canvas,
   useFrame,
-  useLoader,
   useThree,
-  invalidate
-} from '@react-three/fiber';
+  invalidate,
+} from "@react-three/fiber";
 
 import {
   OrbitControls,
   useGLTF,
-  useFBX,
   useProgress,
   Html,
   Environment,
-  ContactShadows
-} from '@react-three/drei';
+  ContactShadows,
+} from "@react-three/drei";
 
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
-import * as THREE from 'three';
-
+import * as THREE from "three";
 
 // ------------------------------------------------------------
 // CONSTANTS
 // ------------------------------------------------------------
 
 const isTouch =
-  typeof window !== 'undefined' &&
-  ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  typeof window !== "undefined" &&
+  ("ontouchstart" in window ||
+    navigator.maxTouchPoints > 0);
 
-const deg2rad = d => (d * Math.PI) / 180;
+const deg2rad = (d) => (d * Math.PI) / 180;
 
 const DECIDE = 8;
 
@@ -52,7 +51,6 @@ const PARALLAX_EASE = 0.12;
 const HOVER_MAG = deg2rad(6 * 2);
 const HOVER_EASE = 0.15;
 
-
 // ------------------------------------------------------------
 // LOADER
 // ------------------------------------------------------------
@@ -60,7 +58,9 @@ const HOVER_EASE = 0.15;
 const Loader = ({ placeholderSrc }) => {
   const { progress, active } = useProgress();
 
-  if (!active && placeholderSrc) return null;
+  if (!active && placeholderSrc) {
+    return null;
+  }
 
   return (
     <Html center>
@@ -70,8 +70,8 @@ const Loader = ({ placeholderSrc }) => {
           width={128}
           height={128}
           style={{
-            filter: 'blur(8px)',
-            borderRadius: 8
+            filter: "blur(8px)",
+            borderRadius: 8,
           }}
         />
       ) : (
@@ -81,7 +81,6 @@ const Loader = ({ placeholderSrc }) => {
   );
 };
 
-
 // ------------------------------------------------------------
 // DESKTOP ORBIT CONTROLS
 // ------------------------------------------------------------
@@ -90,15 +89,23 @@ const DesktopControls = ({
   pivot,
   min,
   max,
-  zoomEnabled
+  zoomEnabled,
+  initialized,
 }) => {
   const ref = useRef(null);
 
   useFrame(() => {
-    if (ref.current) {
-      ref.current.target.copy(pivot);
-      ref.current.update();
+    if (
+      !initialized.current ||
+      !ref.current
+    ) {
+      return;
     }
+
+    // Keep OrbitControls targeting the actual model pivot.
+    ref.current.target.copy(pivot);
+
+    ref.current.update();
   });
 
   return (
@@ -113,7 +120,6 @@ const DesktopControls = ({
     />
   );
 };
-
 
 // ------------------------------------------------------------
 // MODEL INNER
@@ -137,7 +143,8 @@ const ModelInner = ({
   fadeIn,
   autoRotate,
   autoRotateSpeed,
-  onLoaded
+  onLoaded,
+  initialized,
 }) => {
   const outer = useRef(null);
   const inner = useRef(null);
@@ -146,72 +153,54 @@ const ModelInner = ({
 
   const vel = useRef({
     x: 0,
-    y: 0
+    y: 0,
   });
 
   const tPar = useRef({
     x: 0,
-    y: 0
+    y: 0,
   });
 
   const cPar = useRef({
     x: 0,
-    y: 0
+    y: 0,
   });
 
   const tHov = useRef({
     x: 0,
-    y: 0
+    y: 0,
   });
 
   const cHov = useRef({
     x: 0,
-    y: 0
+    y: 0,
   });
 
   // Stores the model's actual world-space pivot.
-  const pivotW = useRef(new THREE.Vector3());
-
-
-  // ----------------------------------------------------------
-  // DETERMINE FILE TYPE
-  // ----------------------------------------------------------
-
-  const ext = useMemo(
-    () => url.split('.').pop().toLowerCase(),
-    [url]
+  const pivotW = useRef(
+    new THREE.Vector3()
   );
 
+  // ----------------------------------------------------------
+  // LOAD GLB / GLTF
+  // ----------------------------------------------------------
 
-  // ----------------------------------------------------------
-  // LOAD MODEL
-  // ----------------------------------------------------------
+  const { scene } = useGLTF(url);
 
   const content = useMemo(() => {
-    if (ext === 'glb' || ext === 'gltf') {
-      return useGLTF(url).scene.clone();
-    }
-
-    if (ext === 'fbx') {
-      return useFBX(url).clone();
-    }
-
-    if (ext === 'obj') {
-      return useLoader(OBJLoader, url).clone();
-    }
-
-    console.error('Unsupported format:', ext);
-
-    return null;
-  }, [url, ext]);
-
+    return scene.clone();
+  }, [scene]);
 
   // ----------------------------------------------------------
   // MODEL INITIALIZATION
   // ----------------------------------------------------------
 
   useLayoutEffect(() => {
-    if (!content || !inner.current || !outer.current) {
+    if (
+      !content ||
+      !inner.current ||
+      !outer.current
+    ) {
       return;
     }
 
@@ -219,12 +208,42 @@ const ModelInner = ({
     const o = outer.current;
 
     // --------------------------------------------------------
+    // RESET INITIALIZATION STATE
+    // --------------------------------------------------------
+
+    initialized.current = false;
+
+    // Reset all transforms so every mount starts from
+    // a known state.
+    o.position.set(0, 0, 0);
+    o.rotation.set(0, 0, 0);
+
+    g.position.set(0, 0, 0);
+    g.rotation.set(0, 0, 0);
+    g.scale.set(1, 1, 1);
+
+    // Reset velocity/parallax state as well.
+    vel.current.x = 0;
+    vel.current.y = 0;
+
+    tPar.current.x = 0;
+    tPar.current.y = 0;
+
+    cPar.current.x = 0;
+    cPar.current.y = 0;
+
+    tHov.current.x = 0;
+    tHov.current.y = 0;
+
+    cHov.current.x = 0;
+    cHov.current.y = 0;
+
+    // --------------------------------------------------------
     // STEP 1
     // Make sure the loaded model's matrices are current.
     // --------------------------------------------------------
 
     g.updateMatrixWorld(true);
-
 
     // --------------------------------------------------------
     // STEP 2
@@ -241,14 +260,11 @@ const ModelInner = ({
       new THREE.Vector3()
     );
 
-
     // --------------------------------------------------------
     // STEP 3
     // Normalize the model.
     //
     // The largest dimension becomes exactly 1 world unit.
-    // This makes models with different source scales behave
-    // consistently.
     // --------------------------------------------------------
 
     const maxDimension = Math.max(
@@ -257,40 +273,59 @@ const ModelInner = ({
       size.z
     );
 
-    if (maxDimension > 0) {
-      const scale = 1 / maxDimension;
+    if (maxDimension <= 0) {
+      console.warn(
+        "ModelViewer: model has no valid dimensions."
+      );
 
-      g.scale.setScalar(scale);
-
-      // Center the model after scaling.
-      g.position.copy(center).multiplyScalar(-scale);
+      return;
     }
 
+    const scale = 1 / maxDimension;
+
+    // The bounding box center is in world-space.
+    // Convert it into the local coordinate system of
+    // the inner group before using it as a local position.
+    const centerLocal =
+      g.worldToLocal(
+        center.clone()
+      );
+
+    // Apply normalization scale.
+    g.scale.setScalar(scale);
+
+    // Center the model around the origin.
+    g.position.copy(
+      centerLocal.multiplyScalar(-scale)
+    );
 
     // --------------------------------------------------------
     // STEP 4
-    // Update matrices again because we changed position/scale.
+    // Update matrices after normalization.
     // --------------------------------------------------------
 
     g.updateMatrixWorld(true);
     o.updateMatrixWorld(true);
 
-
     // --------------------------------------------------------
     // STEP 5
-    // Calculate the final world-space pivot.
-    //
-    // This happens AFTER normalization.
+    // Calculate final world-space pivot.
     // --------------------------------------------------------
 
-    g.getWorldPosition(pivotW.current);
+    g.getWorldPosition(
+      pivotW.current
+    );
 
-    pivot.copy(pivotW.current);
-
+    pivot.copy(
+      pivotW.current
+    );
 
     // --------------------------------------------------------
     // STEP 6
     // Apply initial rotation.
+    //
+    // Rotation is applied only after the model has been
+    // centered.
     // --------------------------------------------------------
 
     o.rotation.set(
@@ -301,90 +336,96 @@ const ModelInner = ({
 
     o.updateMatrixWorld(true);
 
-
     // --------------------------------------------------------
     // STEP 7
     // Configure camera.
     //
-    // autoFrame uses the normalized model dimensions.
-    // Otherwise we use the supplied defaultZoom.
+    // This is the single point where the initial camera
+    // position is established.
     // --------------------------------------------------------
 
     if (camera.isPerspectiveCamera) {
       const persp = camera;
 
+      let distance;
+
       if (autoFrame) {
-        // The model is normalized to approximately 1 unit.
         const normalizedRadius = 0.5;
 
         const fovRadians =
-          (persp.fov * Math.PI) / 180;
+          THREE.MathUtils.degToRad(
+            persp.fov
+          );
 
-        const distance =
+        distance =
           (normalizedRadius * 1.2) /
           Math.sin(fovRadians / 2);
-
-        persp.position.set(
-          pivotW.current.x,
-          pivotW.current.y,
-          pivotW.current.z + distance
-        );
-
-        persp.near = Math.max(
-          distance / 10,
-          0.001
-        );
-
-        persp.far = Math.max(
-          distance * 10,
-          100
-        );
       } else {
-        persp.position.set(
-          pivotW.current.x,
-          pivotW.current.y,
-          pivotW.current.z + defaultZoom
-        );
-
-        persp.near = 0.01;
-        persp.far = 100;
+        distance = defaultZoom;
       }
 
+      // Position camera relative to the FINAL pivot.
+      persp.position.set(
+        pivotW.current.x,
+        pivotW.current.y,
+        pivotW.current.z + distance
+      );
+
+      persp.near = autoFrame
+        ? Math.max(
+            distance / 10,
+            0.001
+          )
+        : 0.01;
+
+      persp.far = autoFrame
+        ? Math.max(
+            distance * 10,
+            100
+          )
+        : 100;
+
       // Explicitly point the camera at the model.
-      persp.lookAt(pivotW.current);
+      persp.lookAt(
+        pivotW.current
+      );
 
-      // Recalculate projection matrix after changing
-      // camera position / clipping planes.
       persp.updateProjectionMatrix();
+      persp.updateMatrixWorld(true);
     }
-
 
     // --------------------------------------------------------
     // STEP 8
     // Configure meshes/materials.
     // --------------------------------------------------------
 
-    g.traverse(o => {
-      if (!o.isMesh) return;
+    g.traverse((obj) => {
+      if (!obj.isMesh) {
+        return;
+      }
 
-      o.castShadow = true;
-      o.receiveShadow = true;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
 
       if (fadeIn) {
-        o.material.transparent = true;
-        o.material.opacity = 0;
+        obj.material.transparent = true;
+        obj.material.opacity = 0;
       }
     });
 
-
     // --------------------------------------------------------
     // STEP 9
-    // Force the renderer to actually render the initialized
-    // state.
+    // Initialization is now complete.
+    //
+    // IMPORTANT:
+    // The controls and frame loop are allowed to run only
+    // after this becomes true.
     // --------------------------------------------------------
 
-    invalidate();
+    initialized.current = true;
 
+    // Render the fully initialized state.
+    invalidate();
 
     // --------------------------------------------------------
     // STEP 10
@@ -399,9 +440,9 @@ const ModelInner = ({
 
         const v = Math.min(t, 1);
 
-        g.traverse(o => {
-          if (o.isMesh) {
-            o.material.opacity = v;
+        g.traverse((obj) => {
+          if (obj.isMesh) {
+            obj.material.opacity = v;
           }
         });
 
@@ -412,19 +453,18 @@ const ModelInner = ({
 
           onLoaded?.();
 
-          // One final guaranteed render.
           invalidate();
         }
       }, 16);
 
-      return () => clearInterval(id);
+      return () => {
+        clearInterval(id);
+      };
     }
-
 
     // No fade-in.
     onLoaded?.();
 
-    // Final initialization render.
     invalidate();
 
   }, [
@@ -436,16 +476,19 @@ const ModelInner = ({
     initPitch,
     fadeIn,
     pivot,
-    onLoaded
+    onLoaded,
+    initialized,
   ]);
-
 
   // ----------------------------------------------------------
   // DESKTOP MANUAL ROTATION
   // ----------------------------------------------------------
 
   useEffect(() => {
-    if (!enableManualRotation || isTouch) {
+    if (
+      !enableManualRotation ||
+      isTouch
+    ) {
       return;
     }
 
@@ -456,10 +499,10 @@ const ModelInner = ({
     let lx = 0;
     let ly = 0;
 
-    const down = e => {
+    const down = (e) => {
       if (
-        e.pointerType !== 'mouse' &&
-        e.pointerType !== 'pen'
+        e.pointerType !== "mouse" &&
+        e.pointerType !== "pen"
       ) {
         return;
       }
@@ -470,18 +513,25 @@ const ModelInner = ({
       ly = e.clientY;
 
       window.addEventListener(
-        'pointerup',
+        "pointerup",
         up
       );
     };
 
-    const move = e => {
-      if (!drag || !outer.current) {
+    const move = (e) => {
+      if (
+        !drag ||
+        !outer.current ||
+        !initialized.current
+      ) {
         return;
       }
 
-      const dx = e.clientX - lx;
-      const dy = e.clientY - ly;
+      const dx =
+        e.clientX - lx;
+
+      const dy =
+        e.clientY - ly;
 
       lx = e.clientX;
       ly = e.clientY;
@@ -494,7 +544,7 @@ const ModelInner = ({
 
       vel.current = {
         x: dx * ROTATE_SPEED,
-        y: dy * ROTATE_SPEED
+        y: dy * ROTATE_SPEED,
       };
 
       invalidate();
@@ -505,36 +555,36 @@ const ModelInner = ({
     };
 
     el.addEventListener(
-      'pointerdown',
+      "pointerdown",
       down
     );
 
     el.addEventListener(
-      'pointermove',
+      "pointermove",
       move
     );
 
     return () => {
       el.removeEventListener(
-        'pointerdown',
+        "pointerdown",
         down
       );
 
       el.removeEventListener(
-        'pointermove',
+        "pointermove",
         move
       );
 
       window.removeEventListener(
-        'pointerup',
+        "pointerup",
         up
       );
     };
   }, [
     gl,
-    enableManualRotation
+    enableManualRotation,
+    initialized,
   ]);
-
 
   // ----------------------------------------------------------
   // TOUCH CONTROLS
@@ -549,7 +599,7 @@ const ModelInner = ({
 
     const pts = new Map();
 
-    let mode = 'idle';
+    let mode = "idle";
 
     let sx = 0;
     let sy = 0;
@@ -560,19 +610,20 @@ const ModelInner = ({
     let startDist = 0;
     let startZ = 0;
 
-
-    const down = e => {
-      if (e.pointerType !== 'touch') {
+    const down = (e) => {
+      if (
+        e.pointerType !== "touch"
+      ) {
         return;
       }
 
       pts.set(e.pointerId, {
         x: e.clientX,
-        y: e.clientY
+        y: e.clientY,
       });
 
       if (pts.size === 1) {
-        mode = 'decide';
+        mode = "decide";
 
         sx = lx = e.clientX;
         sy = ly = e.clientY;
@@ -580,10 +631,10 @@ const ModelInner = ({
         pts.size === 2 &&
         enableManualZoom
       ) {
-        mode = 'pinch';
+        mode = "pinch";
 
         const [p1, p2] = [
-          ...pts.values()
+          ...pts.values(),
         ];
 
         startDist = Math.hypot(
@@ -599,8 +650,7 @@ const ModelInner = ({
       invalidate();
     };
 
-
-    const move = e => {
+    const move = (e) => {
       const p = pts.get(
         e.pointerId
       );
@@ -612,10 +662,12 @@ const ModelInner = ({
       p.x = e.clientX;
       p.y = e.clientY;
 
+      if (mode === "decide") {
+        const dx =
+          e.clientX - sx;
 
-      if (mode === 'decide') {
-        const dx = e.clientX - sx;
-        const dy = e.clientY - sy;
+        const dy =
+          e.clientY - sy;
 
         if (
           Math.abs(dx) > DECIDE ||
@@ -625,28 +677,31 @@ const ModelInner = ({
             enableManualRotation &&
             Math.abs(dx) > Math.abs(dy)
           ) {
-            mode = 'rotate';
+            mode = "rotate";
 
             el.setPointerCapture(
               e.pointerId
             );
           } else {
-            mode = 'idle';
+            mode = "idle";
 
             pts.clear();
           }
         }
       }
 
-
       if (
-        mode === 'rotate' &&
-        outer.current
+        mode === "rotate" &&
+        outer.current &&
+        initialized.current
       ) {
         e.preventDefault();
 
-        const dx = e.clientX - lx;
-        const dy = e.clientY - ly;
+        const dx =
+          e.clientX - lx;
+
+        const dy =
+          e.clientY - ly;
 
         lx = e.clientX;
         ly = e.clientY;
@@ -659,20 +714,21 @@ const ModelInner = ({
 
         vel.current = {
           x: dx * ROTATE_SPEED,
-          y: dy * ROTATE_SPEED
+          y: dy * ROTATE_SPEED,
         };
 
         invalidate();
 
       } else if (
-        mode === 'pinch' &&
+        mode === "pinch" &&
         pts.size === 2 &&
-        enableManualZoom
+        enableManualZoom &&
+        initialized.current
       ) {
         e.preventDefault();
 
         const [p1, p2] = [
-          ...pts.values()
+          ...pts.values(),
         ];
 
         const d = Math.hypot(
@@ -691,87 +747,87 @@ const ModelInner = ({
               maxZoom
             );
 
+          camera.updateMatrixWorld(
+            true
+          );
+
           invalidate();
         }
       }
     };
 
-
-    const up = e => {
+    const up = (e) => {
       pts.delete(e.pointerId);
 
       if (
-        mode === 'rotate' &&
+        mode === "rotate" &&
         pts.size === 0
       ) {
-        mode = 'idle';
+        mode = "idle";
       }
 
       if (
-        mode === 'pinch' &&
+        mode === "pinch" &&
         pts.size < 2
       ) {
-        mode = 'idle';
+        mode = "idle";
       }
     };
 
-
     el.addEventListener(
-      'pointerdown',
+      "pointerdown",
       down,
       { passive: true }
     );
 
     window.addEventListener(
-      'pointermove',
+      "pointermove",
       move,
       { passive: false }
     );
 
     window.addEventListener(
-      'pointerup',
+      "pointerup",
       up,
       { passive: true }
     );
 
     window.addEventListener(
-      'pointercancel',
+      "pointercancel",
       up,
       { passive: true }
     );
 
-
     return () => {
       el.removeEventListener(
-        'pointerdown',
+        "pointerdown",
         down
       );
 
       window.removeEventListener(
-        'pointermove',
+        "pointermove",
         move
       );
 
       window.removeEventListener(
-        'pointerup',
+        "pointerup",
         up
       );
 
       window.removeEventListener(
-        'pointercancel',
+        "pointercancel",
         up
       );
     };
-
   }, [
     gl,
     camera,
     enableManualRotation,
     enableManualZoom,
     minZoom,
-    maxZoom
+    maxZoom,
+    initialized,
   ]);
-
 
   // ----------------------------------------------------------
   // MOUSE PARALLAX / HOVER
@@ -782,83 +838,94 @@ const ModelInner = ({
       return;
     }
 
-    const mm = e => {
-      if (e.pointerType !== 'mouse') {
+    const mm = (e) => {
+      if (
+        e.pointerType !== "mouse"
+      ) {
         return;
       }
 
       const nx =
-        (e.clientX / window.innerWidth) *
+        (e.clientX /
+          window.innerWidth) *
           2 -
         1;
 
       const ny =
-        (e.clientY / window.innerHeight) *
+        (e.clientY /
+          window.innerHeight) *
           2 -
         1;
 
-
-      if (enableMouseParallax) {
+      if (
+        enableMouseParallax
+      ) {
         tPar.current = {
           x: -nx * PARALLAX_MAG,
-          y: -ny * PARALLAX_MAG
+          y: -ny * PARALLAX_MAG,
         };
       }
 
-
-      if (enableHoverRotation) {
+      if (
+        enableHoverRotation
+      ) {
         tHov.current = {
           x: ny * HOVER_MAG,
-          y: nx * HOVER_MAG
+          y: nx * HOVER_MAG,
         };
       }
 
-      invalidate();
+      if (initialized.current) {
+        invalidate();
+      }
     };
 
-
     window.addEventListener(
-      'pointermove',
+      "pointermove",
       mm
     );
 
     return () => {
       window.removeEventListener(
-        'pointermove',
+        "pointermove",
         mm
       );
     };
-
   }, [
     enableMouseParallax,
-    enableHoverRotation
+    enableHoverRotation,
+    initialized,
   ]);
-
 
   // ----------------------------------------------------------
   // FRAME LOOP
   // ----------------------------------------------------------
 
   useFrame((_, dt) => {
-    if (!outer.current) {
+    // Do absolutely nothing until the model + camera
+    // have been initialized.
+    if (
+      !outer.current ||
+      !initialized.current
+    ) {
       return;
     }
 
     let need = false;
-
 
     // --------------------------------------------------------
     // PARALLAX
     // --------------------------------------------------------
 
     cPar.current.x +=
-      (tPar.current.x - cPar.current.x) *
+      (tPar.current.x -
+        cPar.current.x) *
       PARALLAX_EASE;
 
     cPar.current.y +=
-      (tPar.current.y - cPar.current.y) *
+      (tPar.current.y -
+        cPar.current.y) *
       PARALLAX_EASE;
-
 
     // --------------------------------------------------------
     // HOVER ROTATION
@@ -870,28 +937,24 @@ const ModelInner = ({
     const phy =
       cHov.current.y;
 
-
     cHov.current.x +=
-      (tHov.current.x - cHov.current.x) *
+      (tHov.current.x -
+        cHov.current.x) *
       HOVER_EASE;
 
     cHov.current.y +=
-      (tHov.current.y - cHov.current.y) *
+      (tHov.current.y -
+        cHov.current.y) *
       HOVER_EASE;
-
 
     // --------------------------------------------------------
     // MODEL POSITION
-    //
-    // Convert the pivot to NDC, apply offsets, then convert
-    // back to world space.
     // --------------------------------------------------------
 
     const ndc =
       pivotW.current
         .clone()
         .project(camera);
-
 
     ndc.x +=
       xOff +
@@ -901,11 +964,9 @@ const ModelInner = ({
       yOff +
       cPar.current.y;
 
-
     outer.current.position.copy(
       ndc.unproject(camera)
     );
-
 
     // --------------------------------------------------------
     // HOVER ROTATION
@@ -916,7 +977,6 @@ const ModelInner = ({
 
     outer.current.rotation.y +=
       cHov.current.y - phy;
-
 
     // --------------------------------------------------------
     // AUTO ROTATION
@@ -929,7 +989,6 @@ const ModelInner = ({
       need = true;
     }
 
-
     // --------------------------------------------------------
     // INERTIA
     // --------------------------------------------------------
@@ -940,20 +999,19 @@ const ModelInner = ({
     outer.current.rotation.x +=
       vel.current.y;
 
-
     vel.current.x *= INERTIA;
     vel.current.y *= INERTIA;
 
-
     if (
-      Math.abs(vel.current.x) >
-        1e-4 ||
-      Math.abs(vel.current.y) >
-        1e-4
+      Math.abs(
+        vel.current.x
+      ) > 1e-4 ||
+      Math.abs(
+        vel.current.y
+      ) > 1e-4
     ) {
       need = true;
     }
-
 
     // --------------------------------------------------------
     // PARALLAX / HOVER ANIMATION
@@ -964,17 +1022,14 @@ const ModelInner = ({
         cPar.current.x -
           tPar.current.x
       ) > 1e-4 ||
-
       Math.abs(
         cPar.current.y -
           tPar.current.y
       ) > 1e-4 ||
-
       Math.abs(
         cHov.current.x -
           tHov.current.x
       ) > 1e-4 ||
-
       Math.abs(
         cHov.current.y -
           tHov.current.y
@@ -982,7 +1037,6 @@ const ModelInner = ({
     ) {
       need = true;
     }
-
 
     // --------------------------------------------------------
     // DEMAND RENDERING
@@ -993,11 +1047,9 @@ const ModelInner = ({
     }
   });
 
-
   if (!content) {
     return null;
   }
-
 
   return (
     <group ref={outer}>
@@ -1007,7 +1059,6 @@ const ModelInner = ({
     </group>
   );
 };
-
 
 // ------------------------------------------------------------
 // MODEL VIEWER
@@ -1040,7 +1091,7 @@ const ModelViewer = ({
   fillLightIntensity = 0.5,
   rimLightIntensity = 0.8,
 
-  environmentPreset = 'forest',
+  environmentPreset = "forest",
 
   autoFrame = false,
 
@@ -1053,8 +1104,17 @@ const ModelViewer = ({
   autoRotate = false,
   autoRotateSpeed = 0.35,
 
-  onModelLoaded
+  onModelLoaded,
 }) => {
+  // ----------------------------------------------------------
+  // INITIALIZATION STATE
+  //
+  // This ref is shared with ModelInner and DesktopControls.
+  // Nothing should manipulate the model/camera until this
+  // becomes true.
+  // ----------------------------------------------------------
+
+  const initialized = useRef(false);
 
   // ----------------------------------------------------------
   // PRELOAD GLTF
@@ -1062,13 +1122,12 @@ const ModelViewer = ({
 
   useEffect(() => {
     if (
-      url.endsWith('.glb') ||
-      url.endsWith('.gltf')
+      url.endsWith(".glb") ||
+      url.endsWith(".gltf")
     ) {
       useGLTF.preload(url);
     }
   }, [url]);
-
 
   // ----------------------------------------------------------
   // SHARED MODEL PIVOT
@@ -1078,7 +1137,6 @@ const ModelViewer = ({
     useRef(
       new THREE.Vector3()
     ).current;
-
 
   // ----------------------------------------------------------
   // SCREENSHOT REFS
@@ -1096,14 +1154,8 @@ const ModelViewer = ({
   const cameraRef =
     useRef(null);
 
-
   // ----------------------------------------------------------
   // ROTATION
-  //
-  // Keep the meaning of the props consistent:
-  //
-  // defaultRotationX → X rotation
-  // defaultRotationY → Y rotation
   // ----------------------------------------------------------
 
   const initPitch =
@@ -1111,7 +1163,6 @@ const ModelViewer = ({
 
   const initYaw =
     deg2rad(defaultRotationY);
-
 
   // ----------------------------------------------------------
   // CLAMP DEFAULT ZOOM
@@ -1126,72 +1177,71 @@ const ModelViewer = ({
       maxZoomDistance
     );
 
-
   // ----------------------------------------------------------
   // SCREENSHOT
   // ----------------------------------------------------------
 
   const capture = () => {
-    const g = rendererRef.current;
-    const s = sceneRef.current;
-    const c = cameraRef.current;
+    const g =
+      rendererRef.current;
 
-    if (!g || !s || !c) {
+    const s =
+      sceneRef.current;
+
+    const c =
+      cameraRef.current;
+
+    if (
+      !g ||
+      !s ||
+      !c
+    ) {
       return;
     }
 
-
     g.shadowMap.enabled = false;
-
 
     const tmp = [];
 
-
-    s.traverse(o => {
+    s.traverse((o) => {
       if (
         o.isLight &&
-        'castShadow' in o
+        "castShadow" in o
       ) {
         tmp.push({
           l: o,
-          cast: o.castShadow
+          cast: o.castShadow,
         });
 
         o.castShadow = false;
       }
     });
 
-
     if (contactRef.current) {
-      contactRef.current.visible = false;
+      contactRef.current.visible =
+        false;
     }
 
-
-    // Make sure the screenshot uses the latest camera state.
     c.updateMatrixWorld(true);
 
     g.render(s, c);
 
-
     const urlPNG =
       g.domElement.toDataURL(
-        'image/png'
+        "image/png"
       );
 
-
     const a =
-      document.createElement('a');
+      document.createElement("a");
 
     a.download =
-      'model.png';
+      "model.png";
 
     a.href = urlPNG;
 
     a.click();
 
-
     g.shadowMap.enabled = true;
-
 
     tmp.forEach(
       ({ l, cast }) => {
@@ -1199,15 +1249,13 @@ const ModelViewer = ({
       }
     );
 
-
     if (contactRef.current) {
-      contactRef.current.visible = true;
+      contactRef.current.visible =
+        true;
     }
-
 
     invalidate();
   };
-
 
   // ----------------------------------------------------------
   // RENDER
@@ -1220,56 +1268,48 @@ const ModelViewer = ({
         height,
 
         touchAction:
-          'pan-y pinch-zoom',
+          "pan-y pinch-zoom",
 
-        position: 'relative'
+        position: "relative",
       }}
     >
-
       {showScreenshotButton && (
         <button
           onClick={capture}
           style={{
-            position: 'absolute',
+            position: "absolute",
 
             border:
-              '1px solid #fff',
+              "1px solid #fff",
 
             right: 16,
             top: 16,
 
             zIndex: 10,
 
-            cursor: 'pointer',
+            cursor: "pointer",
 
             padding:
-              '8px 16px',
+              "8px 16px",
 
-            borderRadius: 10
+            borderRadius: 10,
           }}
         >
           Take Screenshot
         </button>
       )}
 
-
       <Canvas
         shadows
-
-        // We keep demand rendering because your
-        // interaction system already uses invalidate().
         frameloop="demand"
-
         gl={{
-          preserveDrawingBuffer: true
+          preserveDrawingBuffer: true,
         }}
-
         onCreated={({
           gl,
           scene,
-          camera
+          camera,
         }) => {
-
           rendererRef.current =
             gl;
 
@@ -1279,19 +1319,12 @@ const ModelViewer = ({
           cameraRef.current =
             camera;
 
-
-          // --------------------------------------------------
-          // Renderer setup
-          // --------------------------------------------------
-
           gl.toneMapping =
             THREE.ACESFilmicToneMapping;
 
           gl.outputColorSpace =
             THREE.SRGBColorSpace;
 
-
-          // Prevent excessively large pixel ratios.
           gl.setPixelRatio(
             Math.min(
               window.devicePixelRatio,
@@ -1299,59 +1332,48 @@ const ModelViewer = ({
             )
           );
 
-
-          // --------------------------------------------------
-          // Explicit camera initialization
-          // --------------------------------------------------
-
           camera.updateProjectionMatrix();
 
           camera.updateMatrixWorld(
             true
           );
 
-
-          // --------------------------------------------------
-          // Force first render.
-          // --------------------------------------------------
-
-          invalidate();
+          // Do NOT invalidate here.
+          //
+          // The model initialization will trigger
+          // the first meaningful render once the model
+          // and camera are ready.
         }}
-
         camera={{
           fov: 50,
 
           position: [
             0,
             0,
-            camZ
+            camZ,
           ],
 
           near: 0.01,
-          far: 100
+          far: 100,
         }}
-
         style={{
           touchAction:
-            'pan-y pinch-zoom'
+            "pan-y pinch-zoom",
         }}
       >
+        {/* ENVIRONMENT */}
 
-        {/* -------------------------------------------------- */}
-        {/* ENVIRONMENT                                        */}
-        {/* -------------------------------------------------- */}
-
-        {environmentPreset !== 'none' && (
+        {environmentPreset !==
+          "none" && (
           <Environment
-            preset={environmentPreset}
+            preset={
+              environmentPreset
+            }
             background={false}
           />
         )}
 
-
-        {/* -------------------------------------------------- */}
-        {/* LIGHTING                                           */}
-        {/* -------------------------------------------------- */}
+        {/* LIGHTING */}
 
         <ambientLight
           intensity={
@@ -1363,7 +1385,7 @@ const ModelViewer = ({
           position={[
             5,
             5,
-            5
+            5,
           ]}
           intensity={
             keyLightIntensity
@@ -1375,7 +1397,7 @@ const ModelViewer = ({
           position={[
             -5,
             2,
-            5
+            5,
           ]}
           intensity={
             fillLightIntensity
@@ -1386,34 +1408,28 @@ const ModelViewer = ({
           position={[
             0,
             4,
-            -5
+            -5,
           ]}
           intensity={
             rimLightIntensity
           }
         />
 
-
-        {/* -------------------------------------------------- */}
-        {/* CONTACT SHADOWS                                    */}
-        {/* -------------------------------------------------- */}
+        {/* CONTACT SHADOWS */}
 
         <ContactShadows
           ref={contactRef}
           position={[
             0,
             -0.5,
-            0
+            0,
           ]}
           opacity={0}
           scale={10}
           blur={2}
         />
 
-
-        {/* -------------------------------------------------- */}
-        {/* MODEL                                               */}
-        {/* -------------------------------------------------- */}
+        {/* MODEL */}
 
         <Suspense
           fallback={
@@ -1424,7 +1440,6 @@ const ModelViewer = ({
             />
           }
         >
-
           <ModelInner
             url={url}
 
@@ -1493,34 +1508,39 @@ const ModelViewer = ({
             onLoaded={
               onModelLoaded
             }
-          />
 
+            initialized={
+              initialized
+            }
+          />
         </Suspense>
 
-
-        {/* -------------------------------------------------- */}
-        {/* DESKTOP CONTROLS                                  */}
-        {/* -------------------------------------------------- */}
+        {/* DESKTOP CONTROLS */}
 
         {!isTouch && (
           <DesktopControls
             pivot={pivot}
+
             min={
               minZoomDistance
             }
+
             max={
               maxZoomDistance
             }
+
             zoomEnabled={
               enableManualZoom
             }
+
+            initialized={
+              initialized
+            }
           />
         )}
-
       </Canvas>
     </div>
   );
 };
-
 
 export default ModelViewer;

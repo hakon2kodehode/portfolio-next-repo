@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "styled-components";
-import HeaderButton from "../components/HeaderButton.styled";
+import HeaderButton from "../components/Button.styled";
 import LightSwitch from "@/components/LightSwitch.styled";
 import Header from "../components/Header.styled";
 import Spacer from "../components/Spacer.styled";
@@ -18,8 +18,6 @@ const SiteWrapper = styled.div`
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
-
-
 
   padding-top: 50px;
 
@@ -44,6 +42,8 @@ const CarouselWrapper = styled.div`
   justify-content: center;
   align-items: center;
 
+    /* background: red; */
+
   border: 2px solid ${({ theme }) => (theme.debug ? "red" : "transparent")};
   height: 500px;
   width: 900px;
@@ -53,7 +53,7 @@ export default function Home() {
   return (
     <>
       <SiteWrapper>
-        {/* <Header /> */}
+
         <Spacer
           $width="1200px"
           $height="2px"
@@ -94,7 +94,6 @@ export default function Home() {
         <CarouselWrapper>
           <Carousel />
         </CarouselWrapper>
-
       </SiteWrapper>
     </>
   );

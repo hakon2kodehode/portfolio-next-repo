@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "styled-components";
-import HeaderButton from "./HeaderButton.styled";
+import Button from "./Button.styled";
 import LightSwitch from "./LightSwitch.styled";
 
 const OuterWrapper = styled.div`
@@ -207,10 +207,10 @@ export default function Header() {
 
         <NavWrapper>
           <InnerWrapper>
-            <HeaderButton href="/">Home</HeaderButton>
-            <HeaderButton href="/projects">Projects</HeaderButton>
-            <HeaderButton href="/about">About</HeaderButton>
-            <HeaderButton href="/contact">Contact</HeaderButton>
+            <Button href="/">Home</Button>
+            <Button href="/projects">Projects</Button>
+            <Button href="/about">About</Button>
+            <Button href="/contact">Contact</Button>
           </InnerWrapper>
         </NavWrapper>
       </OuterWrapper>

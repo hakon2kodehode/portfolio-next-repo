@@ -809,7 +809,7 @@ export default function HeroComponent() {
           <ModelViewer
             url="/models/male_head.glb"
             modelXOffset={0}
-            modelYOffset={-0.7}
+            modelYOffset={-0}
             defaultRotationX={0}
             defaultRotationY={0}
             // autoFrame={true}
@@ -817,7 +817,7 @@ export default function HeroComponent() {
             enableHoverRotation={true}
             showScreenshotButton={false}
             minZoomDistance={0.5}
-            defaultZoom={6.5}
+            defaultZoom={1.5}
             maxZoomDistance={10}
           />
         </ModelContainer>
